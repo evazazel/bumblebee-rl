@@ -30,6 +30,30 @@ class FlowerWorldEnv(gym.Env):
         self.total_reward = 100.0
 
         # -----------------------------------------------------------------------
+        # CUE SALIENCE
+        # Encodes the paper's finding that social cues are more perceptually
+        # salient than non-social cues, due to evolved attentional mechanisms.
+        # Social:     agent perceives the cue 90% of the time
+        # Non-social: agent perceives the cue 40% of the time
+        # The cue is always physically present — but perception is probabilistic.
+        # -----------------------------------------------------------------------
+        self.cue_salience = 0.95 if cue_type == "social" else 0.2
+
+        self.action_space = spaces.Discrete(self.n_flowers)
+        self.observation_space = spaces.Box(
+            low=np.array([0, 0, 0.0, 0.0]),
+            high=np.array([self.n_flowers - 1, 1, 1.0, 1.0]),
+            dtype=np.float32
+        )
+
+        self.flower_rewards = None
+        self.cued_flowers = None
+        self.current_flower = None
+        self.recent_rewards = []
+        self.steps_taken = 0
+        self.max_steps = 20
+
+        # -----------------------------------------------------------------------
         # ACTION SPACE
         # In RL, the action space defines every possible action the agent can take.
         # Here: the agent picks which flower to visit next (0 to 11)
@@ -155,13 +179,24 @@ class FlowerWorldEnv(gym.Env):
     # HELPER: Build the observation vector
     # -----------------------------------------------------------------------
     def _get_obs(self):
+        # -----------------------------------------------------------------------
+        # PERCEIVED CUE
+        # Even if a cue is present, the agent only registers it with probability
+        # cue_salience. This is the key difference between social/non-social.
+        # -----------------------------------------------------------------------
+        cue_physically_present = self.cued_flowers[self.current_flower]
+
+        if cue_physically_present:
+            perceived_cue = 1 if self.np_random.random() < self.cue_salience else 0
+        else:
+            perceived_cue = 0
+
         return np.array([
             float(self.current_flower),
-            float(self.cued_flowers[self.current_flower]),
+            float(perceived_cue),        # ← perceived, not raw physical cue
             self.recent_rewards[-1],
             float(np.mean(self.recent_rewards))
         ], dtype=np.float32)
-
     # -----------------------------------------------------------------------
     # RENDER: Simple text output so we can see what's happening
     # -----------------------------------------------------------------------
