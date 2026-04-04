@@ -37,7 +37,7 @@ class QLearningAgent:
             np.array([0, 1]),         # cues visible: binary
         ]
 
-        # Q-table: (10, 10, 2, 2) — state bins × n_actions
+        # Q-table: (5, 5, 2, 2) — state bins × n_actions
         q_shape = tuple(len(b) for b in self.bins) + (n_actions,)
         self.q_table = np.zeros(q_shape)
 
