@@ -39,7 +39,7 @@ class FlowerWorldEnv(gym.Env):
         # Non-social cues are often missed.
         # This is the key mechanistic difference from the paper.
         # -------------------------------------------------------------------
-        self.cue_salience = 0.95 if cue_type == "social" else 0.2
+        self.cue_salience = 0.9 if cue_type == "social" else 0.25
 
         # -------------------------------------------------------------------
         # ACTION SPACE: binary

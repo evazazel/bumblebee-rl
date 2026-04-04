@@ -20,7 +20,7 @@ class QLearningAgent:
         discount_factor=0.95,
         epsilon=1.0,
         epsilon_min=0.05,
-        epsilon_decay=0.998,    # slower decay → more exploration
+        epsilon_decay=0.999,    # slower decay → more exploration
     ):
         self.n_actions = n_actions
         self.lr = learning_rate

@@ -14,7 +14,7 @@ def run_training(
     variance_condition,
     cue_type,
     n_episodes=5000,
-    cue_reliability=0.9,
+    cue_reliability=0.8,
     seed=42
 ):
     """
