@@ -94,18 +94,14 @@ class FlowerWorldEnv(gym.Env):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
 
-        # Set up flower rewards based on variance condition
-        self.flower_rewards = self._generate_rewards()
+        # Generate rewards AND cue positions together
+        # so we can guarantee rich flowers get cues in high-variance
+        self.flower_rewards, self.cued_flowers = self._generate_world()
 
-        # Randomly assign which 4 flowers get a cue
-        self.cued_flowers = np.zeros(self.n_flowers, dtype=int)
-        cued_indices = self.np_random.choice(self.n_flowers, self.n_cued_flowers, replace=False)
-        self.cued_flowers[cued_indices] = 1
-
-        # Agent starts at a random flower
-        self.current_flower = int(self.np_random.integers(0, self.n_flowers))
         self.recent_rewards = [0.0] * 5
         self.steps_taken = 0
+        self.current_flower = None
+        self.recent_rewards = [0.0] * 5
 
         return self._get_obs(), {}
 
@@ -144,19 +140,50 @@ class FlowerWorldEnv(gym.Env):
     # -----------------------------------------------------------------------
     # HELPER: Generate flower rewards based on variance condition
     # -----------------------------------------------------------------------
-    def _generate_rewards(self):
+    def _generate_world(self):
+        """
+    Generate flower rewards AND cue assignments together.
+
+    High variance (matching paper exactly):
+        - 2 flowers are rich (50ul each)
+        - 4 flowers get cues
+        - Both rich flowers are guaranteed to be among the 4 cued flowers
+        - The other 2 cued flowers are empty (mimics resource depletion)
+        - 8 uncued flowers are all empty
+
+    No variance:
+        - All 12 flowers share reward equally (100/12 each)
+        - 4 random flowers get cues (no advantage to following them)
+
+    This matches the paper's training setup directly.
+        """
         rewards = np.zeros(self.n_flowers)
+        cued = np.zeros(self.n_flowers, dtype=int)
 
         if self.variance_condition == "high":
-            # 2 flowers share all the reward (paper: 50ul each)
-            rich = self.np_random.choice(self.n_flowers, 2, replace=False)
-            rewards[rich] = self.total_reward / 2
+            # Pick 2 rich flowers
+            rich_indices = self.np_random.choice(
+                self.n_flowers, 2, replace=False
+            )
+            rewards[rich_indices] = self.total_reward / 2  # 50ul each
+
+            # Pick 2 MORE flowers (empty) to also get cues
+            remaining = np.setdiff1d(np.arange(self.n_flowers), rich_indices)
+            empty_cued = self.np_random.choice(remaining, 2, replace=False)
+
+            # All 4 cued flowers = 2 rich + 2 empty (exactly like the paper)
+            cued_indices = np.concatenate([rich_indices, empty_cued])
+            cued[cued_indices] = 1
 
         elif self.variance_condition == "no":
-            # All 12 flowers share equally
-            rewards[:] = self.total_reward / self.n_flowers
+            # Equal reward everywhere — cues give no useful information
+            rewards[:] = self.total_reward / self.n_flowers  # 8.33ul each
+            random_cued = self.np_random.choice(
+                self.n_flowers, self.n_cued_flowers, replace=False
+            )
+            cued[random_cued] = 1
 
-        return rewards
+        return rewards, cued
 
     # -----------------------------------------------------------------------
     # HELPER: Determine actual reward when visiting a flower
@@ -184,6 +211,10 @@ class FlowerWorldEnv(gym.Env):
         # Even if a cue is present, the agent only registers it with probability
         # cue_salience. This is the key difference between social/non-social.
         # -----------------------------------------------------------------------
+        # On the very first call after reset, no flower has been visited yet
+        if self.current_flower is None:
+            return np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float32)
+        
         cue_physically_present = self.cued_flowers[self.current_flower]
 
         if cue_physically_present:
