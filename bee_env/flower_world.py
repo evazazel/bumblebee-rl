@@ -39,7 +39,7 @@ class FlowerWorldEnv(gym.Env):
         # Non-social cues are often missed.
         # This is the key mechanistic difference from the paper.
         # -------------------------------------------------------------------
-        self.cue_salience = 0.9 if cue_type == "social" else 0.15
+        self.cue_salience = 0.9 if cue_type == "social" else 0.3
 
         # -------------------------------------------------------------------
         # ACTION SPACE: binary
@@ -197,10 +197,23 @@ class FlowerWorldEnv(gym.Env):
 
     def _get_reward(self, flower_idx):
         base = self.flower_rewards[flower_idx]
-        if self.variance_condition == "high" and self.cued_flowers[flower_idx] == 1:
-            return float(base) if self.np_random.random() < self.cue_reliability else 0.0
 
-        return float(base)
+        # High variance: cues probabilistically predict reward
+        if self.variance_condition == "high":
+            if self.cued_flowers[flower_idx] == 1:
+                return float(base) if self.np_random.random() < self.cue_reliability else 0.0
+            return float(base)
+
+        # No variance:
+        # social cue = competition signal → mild penalty
+        if self.variance_condition == "no":
+            if self.cue_type == "social" and self.cued_flowers[flower_idx] == 1:
+                return float(base * 0.75)
+
+            elif self.cue_type == "non_social" and self.cued_flowers[flower_idx] == 1:
+                return float(base * 0.95)
+
+            return float(base)
 
     def _get_obs(self):
         cues_visible = 1.0 if len(self.current_perceived_cues) > 0 else 0.0
