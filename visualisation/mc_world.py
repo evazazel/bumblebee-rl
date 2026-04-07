@@ -291,14 +291,50 @@ class BeePanel:
             pygame.draw.line(surf, dark,  (bx+2, by+FSIZE-2),(bx+FSIZE-2,by+FSIZE-2),2)
             pygame.draw.line(surf, dark,  (bx+FSIZE-2,by+2), (bx+FSIZE-2,by+FSIZE-2),2)
 
-            # Stem
-            cx = bx + FSIZE // 2
-            pygame.draw.line(surf, C["stem"], (cx, by + FSIZE - 4), (cx, by + FSIZE // 2), 2)
+            # Gold ring around rich flowers (always visible)
+            if is_rich:
+                ring_rect = pygame.Rect(bx - 3, by - 3, FSIZE + 6, FSIZE + 6)
+                pygame.draw.rect(surf, (255, 200, 0), ring_rect, width=3, border_radius=6)
 
-            # Petal (flower head) — grey if empty, yellow if rich
-            petal_col = C["petal"] if is_rich else C["petal_empty"]
-            pygame.draw.circle(surf, petal_col, (cx, by + FSIZE // 2 - 2), 7)
-            pygame.draw.circle(surf, (30, 30, 30), (cx, by + FSIZE // 2 - 2), 3)
+            # Stem + leaf
+            cx = bx + FSIZE // 2
+            cy_stem_top = by + FSIZE // 2 + 2
+            pygame.draw.line(surf, C["stem"], (cx, by + FSIZE - 4), (cx, cy_stem_top), 3)
+
+            # Small leaf on stem
+            leaf_pts = [
+                (cx,     by + FSIZE - 14),
+                (cx + 9, by + FSIZE - 18),
+                (cx,     by + FSIZE - 22),
+            ]
+            pygame.draw.polygon(surf, C["stem"], leaf_pts)
+
+            # Mario-style flower: 5 petals around a centre
+            flower_cx = cx
+            flower_cy = by + FSIZE // 2 - 4
+            petal_r   = 6      # radius of each petal circle
+            orbit_r   = 8      # how far petals are from centre
+
+            # Petal colours — rich = red/white alternating, empty = grey/dark grey
+            if is_rich:
+                petal_cols = [(255, 60, 60), (255, 255, 255)] 
+            else:
+                petal_cols = [(130, 130, 130), (80, 80, 80)]
+
+            for p in range(5):
+                angle = math.radians(-90 + p * 72)   # 5 evenly spaced, top first
+                px_p  = int(flower_cx + orbit_r * math.cos(angle))
+                py_p  = int(flower_cy + orbit_r * math.sin(angle))
+                col_p = petal_cols[p % 2]
+                pygame.draw.circle(surf, col_p,      (px_p, py_p), petal_r)
+                pygame.draw.circle(surf, (20, 20, 20),(px_p, py_p), petal_r, 1)
+
+            # Centre of flower
+            centre_col = (255, 220, 50) if is_rich else (160, 140, 60)
+            pygame.draw.circle(surf, centre_col,   (flower_cx, flower_cy), 6)
+            pygame.draw.circle(surf, (20, 20, 20), (flower_cx, flower_cy), 6, 1)
+            # Centre dot
+            pygame.draw.circle(surf, (20, 20, 20), (flower_cx, flower_cy), 2)
 
             # Cue marker on top of block
             if is_cued:
